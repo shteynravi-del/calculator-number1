@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Калькулятор / Calculator</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--tg-theme-secondary-bg-color, #f0f0f0); color: var(--tg-theme-text-color, #222222); margin: 0; display: flex; flex-direction: column; height: 100vh; user-select: none; }
+        .tabs { display: flex; background-color: var(--tg-theme-bg-color, #ffffff); padding: 10px; gap: 10px; justify-content: center; border-bottom: 1px solid var(--tg-theme-hint-color, #cccccc); }
+        .tab-btn { background-color: transparent; color: var(--tg-theme-hint-color, #999999); border: none; padding: 8px 12px; font-size: 14px; font-weight: bold; border-radius: 10px; cursor: pointer; }
+        .tab-btn.active { background-color: var(--tg-theme-button-color, #3390ec); color: var(--tg-theme-button-text-color, #ffffff); }
+        #display-container { flex-grow: 1; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; padding: 20px; background-color: var(--tg-theme-secondary-bg-color, #f0f0f0); }
+        #history { font-size: 20px; color: var(--tg-theme-hint-color, #999999); min-height: 24px; margin-bottom: 5px; }
+        #display { font-size: 48px; text-align: right; word-wrap: break-word; }
+        .keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 15px; background-color: var(--tg-theme-bg-color, #ffffff); border-top-left-radius: 20px; border-top-right-radius: 20px; padding-bottom: 20px; }
+        button { background-color: var(--tg-theme-secondary-bg-color, #e4e4e5); color: var(--tg-theme-text-color, #000000); border: none; border-radius: 15px; padding: 15px; font-size: 24px; cursor: pointer; transition: 0.1s; }
+        button:active { opacity: 0.6; }
+        button.operator { color: var(--tg-theme-button-color, #3390ec); font-weight: bold; }
+        button.action { background-color: #ff3b30; color: white; }
+        #eng-row { display: none; grid-column: span 4; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px;}
+        .eng-btn { font-size: 16px; background-color: var(--tg-theme-hint-color, #cccccc); color: var(--tg-theme-bg-color, #ffffff); }
+        #converter-view { display: none; padding: 20px; flex-grow: 1; background-color: var(--tg-theme-bg-color, #ffffff); }
+        .conv-input { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid var(--tg-theme-hint-color, #ccc); border-radius: 10px; background: var(--tg-theme-secondary-bg-color, #f0f0f0); color: var(--tg-theme-text-color, #000); font-size: 18px; box-sizing: border-box; }
+        .bottom-actions { display: flex; gap: 10px; padding: 15px; background-color: var(--tg-theme-bg-color, #ffffff); }
+        .action-btn { flex: 1; font-size: 14px; padding: 15px; border-radius: 12px; font-weight: bold; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="tabs">
+        <button id="tab-std" class="tab-btn active" onclick="switchMode('standard', this)"></button>
+        <button id="tab-eng" class="tab-btn" onclick="switchMode('engineer', this)"></button>
+        <button id="tab-cnv" class="tab-btn" onclick="switchMode('converter', this)"></button>
+    </div>
+
+    <div id="calc-view" style="display: flex; flex-direction: column; flex-grow: 1;">
+        <div id="display-container">
+            <div id="history"></div>
+            <div id="display">0</div>
+        </div>
+        <div class="keypad">
+            <div id="eng-row" style="display: none;">
+                <button class="eng-btn" onclick="calcAction('Math.sin(')">sin</button>
+                <button class="eng-btn" onclick="calcAction('Math.cos(')">cos</button>
+                <button class="eng-btn" onclick="calcAction('Math.sqrt(')">√</button>
+                <button class="eng-btn" onclick="calcAction('**')">x²</button>
+            </div>
+            <button class="action" onclick="clearDisplay()">C</button>
+            <button onclick="calcAction('(')">(</button>
+            <button onclick="calcAction(')')">)</button>
+            <button class="operator" onclick="calcAction('/')">÷</button>
+            <button onclick="calcAction('7')">7</button><button onclick="calcAction('8')">8</button><button onclick="calcAction('9')">9</button><button class="operator" onclick="calcAction('*')">×</button>
+            <button onclick="calcAction('4')">4</button><button onclick="calcAction('5')">5</button><button onclick="calcAction('6')">6</button><button class="operator" onclick="calcAction('-')">-</button>
+            <button onclick="calcAction('1')">1</button><button onclick="calcAction('2')">2</button><button onclick="calcAction('3')">3</button><button class="operator" onclick="calcAction('+')">+</button>
+            <button onclick="calcAction('0')" style="grid-column: span 2;">0</button><button onclick="calcAction('.')">.</button>
+            <button class="operator" onclick="calculate()" style="background-color: var(--tg-theme-button-color, #3390ec); color: white;">=</button>
+        </div>
+    </div>
+
+    <div id="converter-view">
+        <h3 id="len-title" style="margin-top:0;"></h3>
+        <input type="number" id="km-input" class="conv-input" oninput="convert('km')">
+        <input type="number" id="mi-input" class="conv-input" oninput="convert('mi')">
+        <h3 id="weight-title"></h3>
+        <input type="number" id="kg-input" class="conv-input" oninput="convert('kg')">
+        <input type="number" id="lb-input" class="conv-input" oninput="convert('lb')">
+    </div>
+
+    <div class="bottom-actions">
+        <button id="share-btn" class="action-btn" style="background-color: #34c759;" onclick="shareResult()"></button>
+        <button id="desktop-btn" class="action-btn" style="background-color: var(--tg-theme-button-color, #3390ec);" onclick="addToHomeScreen()"></button>
+    </div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand(); tg.ready();
+
+        const dict = {
+            ru: { tabStd: "🔢 Простой", tabEng: "📐 Инженерный", tabCnv: "🔄 Конвертер", lenTitle: "Длина (Км ↔ Мили)", kmPh: "Километры", miPh: "Мили", weightTitle: "Вес (Кг ↔ Фунты)", kgPh: "Килограммы", lbPh: "Фунты", deskBtn: "📱 На рабочий стол", shareBtn: "📤 Поделиться", errText: "Ошибка", shareTextTitle: "Смотри, что у меня вышло:\n" },
+            en: { tabStd: "🔢 Standard", tabEng: "📐 Scientific", tabCnv: "🔄 Converter", lenTitle: "Length (Km ↔ Miles)", kmPh: "Kilometers", miPh: "Miles", weightTitle: "Weight (Kg ↔ Pounds)", kgPh: "Kilograms", lbPh: "Pounds", deskBtn: "📱 Home Screen", shareBtn: "📤 Share", errText: "Error", shareTextTitle: "Look what I got:\n" }
+        };
+
+        let lang = (tg.initDataUnsafe?.user?.language_code === 'ru') ? 'ru' : 'en';
+
+        document.getElementById('tab-std').innerText = dict[lang].tabStd;
+        document.getElementById('tab-eng').innerText = dict[lang].tabEng;
+        document.getElementById('tab-cnv').innerText = dict[lang].tabCnv;
+        document.getElementById('len-title').innerText = dict[lang].lenTitle;
+        document.getElementById('km-input').placeholder = dict[lang].kmPh;
+        document.getElementById('mi-input').placeholder = dict[lang].miPh;
+        document.getElementById('weight-title').innerText = dict[lang].weightTitle;
+        document.getElementById('kg-input').placeholder = dict[lang].kgPh;
+        document.getElementById('lb-input').placeholder = dict[lang].lbPh;
+        document.getElementById('desktop-btn').innerText = dict[lang].deskBtn;
+        document.getElementById('share-btn').innerText = dict[lang].shareBtn;
+
+        let display = document.getElementById('display'), history = document.getElementById('history');
+        let currentExpr = '0', lastEquation = "";
+
+        function switchMode(mode, btnElement) {
+            tg.HapticFeedback.impactOccurred('light');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); btnElement.classList.add('active');
+            document.getElementById('calc-view').style.display = 'none'; document.getElementById('converter-view').style.display = 'none'; document.getElementById('eng-row').style.display = 'none';
+            if (mode === 'standard') { document.getElementById('calc-view').style.display = 'flex'; } 
+            else if (mode === 'engineer') { document.getElementById('calc-view').style.display = 'flex'; document.getElementById('eng-row').style.display = 'grid'; } 
+            else if (mode === 'converter') { document.getElementById('converter-view').style.display = 'block'; }
+        }
+
+        function formatExpression(expr) { return expr.replace(/\*/g, ' × ').replace(/\//g, ' ÷ ').replace(/Math.sin\(/g, 'sin(').replace(/Math.cos\(/g, 'cos(').replace(/Math.sqrt\(/g, '√('); }
+
+        function calcAction(val) {
+            tg.HapticFeedback.impactOccurred('light');
+            if (history.innerText !== "") history.innerText = "";
+            if (currentExpr === '0' && val !== '.') currentExpr = '';
+            currentExpr += val; display.innerText = formatExpression(currentExpr);
+        }
+
+        function clearDisplay() { tg.HapticFeedback.impactOccurred('medium'); currentExpr = '0'; history.innerText = ""; lastEquation = ""; display.innerText = "0"; }
+
+        function calculate() {
+            try {
+                let formattedExpr = formatExpression(currentExpr);
+                let result = eval(currentExpr);
+                let finalResult = String(Math.round(result * 1000000) / 1000000);
+                history.innerText = formattedExpr + " ="; display.innerText = finalResult;
+                lastEquation = formattedExpr + " = " + finalResult; currentExpr = finalResult; tg.HapticFeedback.notificationOccurred('success');
+            } catch(e) { display.innerText = dict[lang].errText; currentExpr = '0'; tg.HapticFeedback.notificationOccurred('error'); }
+        }
+
+        function convert(type) {
+            if(type === 'km') { let km = document.getElementById('km-input').value; document.getElementById('mi-input').value = km ? (km * 0.621371).toFixed(2) : ''; }
+            if(type === 'mi') { let mi = document.getElementById('mi-input').value; document.getElementById('km-input').value = mi ? (mi / 0.621371).toFixed(2) : ''; }
+            if(type === 'kg') { let kg = document.getElementById('kg-input').value; document.getElementById('lb-input').value = kg ? (kg * 2.20462).toFixed(2) : ''; }
+            if(type === 'lb') { let lb = document.getElementById('lb-input').value; document.getElementById('kg-input').value = lb ? (lb / 2.20462).toFixed(2) : ''; }
+        }
+
+        function addToHomeScreen() { tg.HapticFeedback.impactOccurred('heavy'); if (tg.addToHomeScreen) tg.addToHomeScreen(); }
+
+        function shareResult() {
+            tg.HapticFeedback.impactOccurred('heavy');
+            
+            // ВАЖНО: Впишите сюда юзернейм вашего бота (без @)
+            let botUsername = "calculator_number1_bot"; 
+            
+            let equationToShare = lastEquation !== "" ? lastEquation : display.innerText;
+            let textToShare = dict[lang].shareTextTitle + '`' + equationToShare + '`';
+            let shareUrl = 'https://t.me/share/url?url=https://t.me/' + botUsername + '&text=' + encodeURIComponent(textToShare);
+            tg.openTelegramLink(shareUrl);
+        }
+    </script>
+</body>
+</html>
